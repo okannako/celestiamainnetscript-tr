@@ -1,4 +1,4 @@
-![(23)](https://github.com/okannako/celestiamainnetscript/assets/73176377/b0c62370-d14b-4046-9feb-6c5cd4e0afc6)
+<img width="2752" height="1536" alt="celestia2" src="https://github.com/user-attachments/assets/0acdf7cd-87f2-4782-9a52-24b569e2c65b" />
 
 Celestia Mainnet Beta ağında aşağıdaki kodu çalıştırarak Validator, Fibre, Bridge ve Light Node kurabilirsiniz. Script güncel sürümlere göre hazırlanmıştır (celestia-app v10.5.0, celestia-node v0.34.4). Diğer ayrıntılarla birlikte bu script sayesinde kurulumu çok kısa bir süre içerisinde yapabilirsiniz.
 
