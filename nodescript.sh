@@ -16,7 +16,7 @@ echo -e "\e[0m"
 sleep 5
 
 CHAIN_ID="celestia"
-APP_VERSION="v10.5.0"
+APP_VERSION="v10.6.0"
 NODE_VERSION="v0.34.4"
 GO_VERSION="1.26.9"
 CORE_IP="rpc.celestia.pops.one"
@@ -30,6 +30,7 @@ options=(
 "Validator Oluşturmak"
 "Fibre Sunucusu Yüklemek"
 "Fibre Adresini Zincire Kaydetmek"
+"Validator ve Fibre Güncellemek"
 "Light Node Yüklemek"
 "Bridge Node Yüklemek"
 "Full Storage Node Yüklemek"
@@ -234,6 +235,68 @@ celestia-appd tx valaddr set-host $FIBRE_HOST:7980 \
 sleep 10
 echo -e '\e[36mKayıt kontrolü (found: true görünmeli):\e[39m'
 celestia-appd query valaddr provider $(celestia-appd comet show-address)
+
+break
+;;
+
+"Validator ve Fibre Güncellemek")
+
+source $HOME/.bash_profile
+echo -e "\e[1m\e[32m celestia-app $APP_VERSION sürümüne güncelleniyor \e[0m" && sleep 2
+
+if [ ! -d $HOME/celestia-app ]; then
+echo -e '\e[31mHATA: $HOME/celestia-app klasörü bulunamadı. Bu seçenek, bu script veya kılavuzla kurulmuş node.lar içindir.\e[39m'
+break
+fi
+
+cd $HOME/celestia-app
+git fetch --tags
+git checkout -f tags/$APP_VERSION
+make install
+cd $HOME
+
+if [ "v$(celestia-appd version 2>&1 | head -1)" != "$APP_VERSION" ]; then
+echo -e '\e[31mHATA: Yeni sürüm derlenemedi, node yeniden başlatılmadı. Yukarıdaki hata mesajlarını kontrol edin.\e[39m'
+break
+fi
+celestia-appd version && sleep 2
+sudo systemctl restart celestia-appd
+echo -e '\e[36mcelestia-appd yeni sürümle yeniden başlatıldı.\e[39m'
+
+FIBRE_SVC=$(systemctl list-unit-files --type=service --no-legend | awk '{print $1}' | grep -i fibre | head -1 | sed 's/\.service$//')
+if [ -z "$FIBRE_SVC" ]; then
+echo -e '\e[36mFibre servisi bulunamadı, sadece celestia-app güncellendi.\e[39m'
+sleep 5
+sudo journalctl -u celestia-appd -f
+break
+fi
+
+FIBRE_DIR=$(systemctl cat $FIBRE_SVC | grep -oP '(?<=--home )\S+' | head -1)
+FIBRE_DIR=${FIBRE_DIR:-/data/fibre}
+echo -e "\e[1m\e[32m Fibre güncelleniyor (servis: $FIBRE_SVC, klasör: $FIBRE_DIR) \e[0m" && sleep 2
+
+cd $HOME
+rm -f fibre fibre_Linux_x86_64.tar.gz checksums.txt
+wget https://github.com/celestiaorg/celestia-app/releases/download/$APP_VERSION/fibre_Linux_x86_64.tar.gz
+wget https://github.com/celestiaorg/celestia-app/releases/download/$APP_VERSION/checksums.txt
+if ! sha256sum --ignore-missing --check checksums.txt; then
+echo -e '\e[31mHATA: Checksum doğrulanamadı, Fibre güncellenmedi. Mevcut Fibre çalışmaya devam ediyor.\e[39m'
+rm -f fibre_Linux_x86_64.tar.gz checksums.txt
+break
+fi
+tar -xzf fibre_Linux_x86_64.tar.gz
+rm fibre_Linux_x86_64.tar.gz checksums.txt
+
+sudo systemctl stop $FIBRE_SVC
+sudo mv fibre /usr/local/bin/
+fibre version
+celestia-appd config sync --fibre-home $FIBRE_DIR --dry-run
+celestia-appd config sync --fibre-home $FIBRE_DIR
+sudo systemctl start $FIBRE_SVC
+
+echo -e '\e[36mGüncelleme tamamlandı. Kontrol için: celestia-appd status 2>&1 | jq .sync_info.catching_up ve celestiawatch kullanıyorsanız sudo celestiawatch doctor\e[39m'
+sleep 7
+sudo journalctl -u $FIBRE_SVC -f
 
 break
 ;;
