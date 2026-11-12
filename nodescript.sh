@@ -17,8 +17,8 @@ sleep 5
 
 CHAIN_ID="celestia"
 APP_VERSION="v10.6.0"
-NODE_VERSION="v0.34.4"
-GO_VERSION="1.26.9"
+NODE_VERSION="v0.35.0"
+GO_VERSION="1.26.10"
 CORE_IP="rpc.celestia.pops.one"
 CORE_PORT="9090"
 
@@ -31,6 +31,7 @@ options=(
 "Fibre Sunucusu Yüklemek"
 "Fibre Adresini Zincire Kaydetmek"
 "Validator ve Fibre Güncellemek"
+"Bridge / Light Node Güncellemek"
 "Light Node Yüklemek"
 "Bridge Node Yüklemek"
 "Full Storage Node Yüklemek"
@@ -297,6 +298,64 @@ sudo systemctl start $FIBRE_SVC
 echo -e '\e[36mGüncelleme tamamlandı. Kontrol için: celestia-appd status 2>&1 | jq .sync_info.catching_up ve celestiawatch kullanıyorsanız sudo celestiawatch doctor\e[39m'
 sleep 7
 sudo journalctl -u $FIBRE_SVC -f
+
+break
+;;
+
+"Bridge / Light Node Güncellemek")
+
+source $HOME/.bash_profile
+echo -e "\e[1m\e[32m celestia-node $NODE_VERSION sürümüne güncelleniyor \e[0m" && sleep 2
+
+if [ ! -d $HOME/celestia-node ]; then
+echo -e '\e[31mHATA: $HOME/celestia-node klasörü bulunamadı. Bu seçenek, bu script veya kılavuzla kurulmuş node.lar içindir.\e[39m'
+break
+fi
+
+CUR_GO=$(go version 2>/dev/null | awk '{print $3}' | sed 's/^go//')
+if [ "$(printf '%s\n' "$GO_VERSION" "$CUR_GO" | sort -V | head -1)" != "$GO_VERSION" ]; then
+echo -e "\e[1m\e[32m Go $GO_VERSION sürümüne güncelleniyor \e[0m" && sleep 2
+cd $HOME
+wget "https://go.dev/dl/go$GO_VERSION.linux-amd64.tar.gz"
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf "go$GO_VERSION.linux-amd64.tar.gz"
+rm "go$GO_VERSION.linux-amd64.tar.gz"
+source $HOME/.bash_profile
+fi
+go version
+
+cd $HOME/celestia-node
+git fetch --tags
+git checkout -f tags/$NODE_VERSION
+make build
+make install
+make cel-key
+cd $HOME
+
+if ! celestia version 2>&1 | grep -q "$NODE_VERSION"; then
+echo -e '\e[31mHATA: Yeni sürüm derlenemedi, node.lar yeniden başlatılmadı. Yukarıdaki hata mesajlarını kontrol edin.\e[39m'
+break
+fi
+celestia version && sleep 2
+
+UPDATED=""
+for SVC in celestia-bridge celestia-lightd celestia-light; do
+if systemctl list-unit-files "$SVC.service" --no-legend 2>/dev/null | grep -q .; then
+case $SVC in celestia-bridge) NTYPE=bridge ;; *) NTYPE=light ;; esac
+sudo systemctl stop $SVC
+celestia $NTYPE config-update --p2p.network celestia
+sudo systemctl start $SVC
+UPDATED="$UPDATED $SVC"
+fi
+done
+
+if [ -z "$UPDATED" ]; then
+echo -e '\e[36mcelestia-node güncellendi ama çalışan bir bridge veya light servisi bulunamadı.\e[39m'
+else
+echo -e "\e[36mGüncellenen ve yeniden başlatılan servisler:$UPDATED\e[39m"
+sleep 5
+sudo journalctl -u ${UPDATED##* } -f
+fi
 
 break
 ;;
