@@ -16,8 +16,8 @@ echo -e "\e[0m"
 sleep 5
 
 CHAIN_ID="celestia"
-APP_VERSION="v10.6.0"
-NODE_VERSION="v0.35.0"
+APP_VERSION="v11.0.0"
+NODE_VERSION="v0.36.0"
 GO_VERSION="1.26.10"
 CORE_IP="rpc.celestia.pops.one"
 CORE_PORT="9090"
