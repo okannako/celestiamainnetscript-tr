@@ -466,7 +466,7 @@ After=network-online.target
 
 [Service]
 User=root
-ExecStart=/usr/local/bin/celestia bridge start --core.ip $BRIDGE_CORE_IP --core.port $CORE_PORT --keyring.backend test --keyring.keyname my_celes_key --p2p.network celestia
+ExecStart=/usr/local/bin/celestia bridge start --metrics.tls=true --metrics --metrics.endpoint otel.celestia.observer
 Restart=on-failure
 RestartSec=3
 LimitNOFILE=100000
